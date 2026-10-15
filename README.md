@@ -13,7 +13,6 @@ CiteLens is a Retrieval-Augmented Generation (RAG) application that lets you ask
 - Display retrieved source passages and, when available, highlight their regions on rendered PDF pages.
 - Maintain conversational context during a session.
 - Run locally with Python or in a Docker container.
-- Deploy the Dockerized application as a web service on Render.
 
 ## Architecture
 
@@ -55,7 +54,6 @@ flowchart LR
 | PDF processing | PyMuPDF, PyPDF2 and Pillow |
 | OCR | Tesseract OCR |
 | Containerization | Docker |
-| Hosting | Render Web Service |
 
 ## Run locally on Windows
 
