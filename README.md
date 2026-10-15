@@ -156,51 +156,6 @@ Open [http://localhost:7860](http://localhost:7860).
 
 The `.env` file is passed into the running container. It is not copied into the Docker image by the Dockerfile. Avoid placing real API keys in source files, Docker build arguments, screenshots or Git history.
 
-## Deploy on Render
-
-CiteLens can be deployed as a Docker-based web service on [Render](https://render.com/).
-
-### 1. Create a Web Service
-
-1. Push the project to your GitHub repository.
-2. Sign in to Render and select **New → Web Service**.
-3. Connect the repository `GovindTelang/CiteLens-assistant`.
-4. Select the `main` branch.
-5. Choose **Docker** as the runtime.
-6. Set the Dockerfile path to `./Dockerfile`.
-7. Choose an available service plan and create the service.
-
-Render builds the Docker image using the repository's Dockerfile, installs its dependencies and starts the Streamlit application.
-
-### 2. Configure environment variables
-
-In your Render service's environment-variable settings, configure:
-
-| Variable | Value |
-|---|---|
-| `GEMINI_API_KEY` | Your own Gemini API key |
-| `MODEL_NAME` | `gemini-3.5-flash-lite` |
-| `TOP_K` | `6` |
-| `PORT` | `7860` |
-
-**Port note:** the included Dockerfile starts Streamlit on port `7860`. Set Render's `PORT` to `7860` to match the current Dockerfile configuration. If you later change the Dockerfile to use Render's dynamically assigned port, update this setting and the local Docker instructions accordingly.
-
-Keep the real Gemini API key in Render's environment settings, not in GitHub.
-
-### 3. Verify the deployment
-
-After deploying:
-
-1. Review the build and runtime logs for errors.
-2. Open the public URL provided by Render.
-3. Upload a test PDF and process it.
-4. Ask a question whose answer appears in the PDF.
-5. Verify that the answer and retrieved source evidence are displayed.
-
-Render's free-service availability and resource limits may change. Free services can also become inactive and require time to start again, so the first request after inactivity may be slower.
-
-For current deployment guidance, see the [Render Web Services documentation](https://render.com/docs/web-services) and [Docker deployment documentation](https://render.com/docs/docker).
-
 ## Configuration
 
 Configuration is read from the local `.env` file or environment variables, as supported by the application.
