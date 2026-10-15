@@ -24,21 +24,42 @@ CiteLens is a learning-focused Retrieval-Augmented Generation (RAG) application 
 - Support conversational memory during a session.
 - Run locally with Python or in a Docker-based host such as Hugging Face Spaces.
 
+
 ## Architecture
 
 ```mermaid
 flowchart LR
-    A[PDF upload] --> B[Text extraction and OCR]
-    B --> C[Chunking and page metadata]
-    C --> D[Sentence Transformer embeddings]
-    D --> E[(FAISS index)]
-    Q[User question] --> R[Retriever]
-    E --> R
-    R --> F[LangChain RAG chain]
-    F --> G[Google Gemini API]
-    G --> H[Answer and source chunks]
-    H --> UI[Streamlit interface]
-    C --> UI
+    subgraph UI["Streamlit Interface"]
+        UP["Upload PDF files"]
+        Q["Ask a question"]
+        OUT["Display answer and source evidence"]
+    end
+
+    subgraph ING["Document Ingestion"]
+        PROC["Extract PDF text using PyMuPDF; use Tesseract OCR for low-text pages"]
+        CHUNK["Create text chunks with page, source and bounding-box metadata"]
+        EMB["Sentence Transformer embeddings (TF-IDF fallback)"]
+        FS[("FAISS vector store")]
+
+        UP --> PROC --> CHUNK --> EMB --> FS
+    end
+
+    subgraph QA["Question Answering"]
+        RAG["LangChain ConversationalRetrievalChain with conversation memory"]
+        RET["FAISS similarity retriever (Top-K)"]
+        GEM["Google Gemini API"]
+
+        Q --> RAG
+        RAG -. "Queries configured retriever" .-> RET
+        FS --> RET
+        RET -->|"Relevant document chunks"| RAG
+        RAG -->|"Question and retrieved context"| GEM
+    end
+
+    GEM --> ANS["Generated answer"]
+    RAG --> SRC["Retrieved source documents"]
+    ANS --> OUT
+    SRC --> OUT
 ```
 
 ## Tech stack
@@ -63,8 +84,8 @@ Install Python 3.10 or newer and Git. For OCR on scanned PDFs, install Tesseract
 After creating your own GitHub repository, run these commands in PowerShell from the folder where you want the project to live:
 
 ```powershell
-git clone https://github.com/GovindTelang/citelens-rag-assistant.git
-cd citelens-rag-assistant
+git clone https://github.com/GovindTelang/CiteLens-assistant.git
+cd CiteLens-assistant
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
