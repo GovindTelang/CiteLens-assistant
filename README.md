@@ -24,50 +24,40 @@ CiteLens is a learning-focused Retrieval-Augmented Generation (RAG) application 
 - Support conversational memory during a session.
 - Run locally with Python or in a Docker-based host such as Hugging Face Spaces.
 
-
 ## Architecture
 
 ```mermaid
-flowchart LR
-    subgraph INPUT["Streamlit Interface — Inputs"]
-        direction TB
-        UP["Upload PDF files"]
-        Q["Ask a question"]
+flowchart TB
+    subgraph ING["1. Document Ingestion"]
+        direction LR
+        UP["Upload PDF in Streamlit"]
+        EXT["Extract PDF text with PyMuPDF<br/>OCR low-text pages with Tesseract"]
+        CHUNK["Split text into chunks<br/>Preserve page and source metadata"]
+        EMB["Sentence Transformer embeddings<br/>TF-IDF fallback"]
+        FS[("FAISS Vector Store")]
+
+        UP --> EXT --> CHUNK --> EMB --> FS
     end
 
-    subgraph ING["Document Ingestion"]
-        direction TB
-        EXT["PDF text extraction and OCR"]
-        CHUNK["Text chunks with page and source metadata"]
-        EMB["Sentence Transformers; TF-IDF fallback"]
-        FS[("FAISS Vector Index")]
-
-        EXT --> CHUNK --> EMB --> FS
-    end
-
-    subgraph QA["Question Answering"]
-        direction TB
-        RAG["LangChain ConversationalRetrievalChain with memory"]
-        RET["Configured Retriever — Top-K"]
+    subgraph QA["2. Question Answering"]
+        direction LR
+        Q["User question"]
+        RAG["LangChain conversational<br/>retrieval chain + memory"]
+        RET["Configured similarity<br/>retriever (Top-K)"]
         GEM["Google Gemini API"]
 
-        RAG -. "Queries retriever" .-> RET
-        RET -->|"Relevant document chunks"| RAG
-        RAG -->|"Question, context and conversation history"| GEM
+        Q --> RAG
+        RAG -. "Calls retriever" .-> RET
+        RET -->|"Relevant chunks"| RAG
+        RAG -->|"Question, context and history"| GEM
     end
 
-    UP --> EXT
-    Q --> RAG
     FS --> RET
 
-    GEM --> ANS["Generated Answer"]
-    RAG --> SRC["Retrieved Source Documents"]
+    GEM --> ANS["Generated answer"]
+    RAG --> SRC["Retrieved source documents"]
 
-    subgraph OUTPUT["Streamlit Interface — Results"]
-        OUT["Display answer and source evidence"]
-    end
-
-    ANS --> OUT
+    ANS --> OUT["Streamlit displays answer<br/>and source evidence"]
     SRC --> OUT
 ```
 
