@@ -1,0 +1,25 @@
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Python environments and cache
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Generated indexes and local documents
+*.faiss
+*.index
+*.pdf
+logs/
+data/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
