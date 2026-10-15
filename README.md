@@ -29,35 +29,44 @@ CiteLens is a learning-focused Retrieval-Augmented Generation (RAG) application 
 
 ```mermaid
 flowchart LR
-    subgraph UI["Streamlit Interface"]
+    subgraph INPUT["Streamlit Interface — Inputs"]
+        direction TB
         UP["Upload PDF files"]
         Q["Ask a question"]
-        OUT["Display answer and source evidence"]
     end
 
     subgraph ING["Document Ingestion"]
-        PROC["Extract PDF text using PyMuPDF; use Tesseract OCR for low-text pages"]
-        CHUNK["Create text chunks with page, source and bounding-box metadata"]
-        EMB["Sentence Transformer embeddings (TF-IDF fallback)"]
-        FS[("FAISS vector store")]
+        direction TB
+        EXT["PDF text extraction and OCR"]
+        CHUNK["Text chunks with page and source metadata"]
+        EMB["Sentence Transformers; TF-IDF fallback"]
+        FS[("FAISS Vector Index")]
 
-        UP --> PROC --> CHUNK --> EMB --> FS
+        EXT --> CHUNK --> EMB --> FS
     end
 
     subgraph QA["Question Answering"]
-        RAG["LangChain ConversationalRetrievalChain with conversation memory"]
-        RET["FAISS similarity retriever (Top-K)"]
+        direction TB
+        RAG["LangChain ConversationalRetrievalChain with memory"]
+        RET["Configured Retriever — Top-K"]
         GEM["Google Gemini API"]
 
-        Q --> RAG
-        RAG -. "Queries configured retriever" .-> RET
-        FS --> RET
+        RAG -. "Queries retriever" .-> RET
         RET -->|"Relevant document chunks"| RAG
-        RAG -->|"Question and retrieved context"| GEM
+        RAG -->|"Question, context and conversation history"| GEM
     end
 
-    GEM --> ANS["Generated answer"]
-    RAG --> SRC["Retrieved source documents"]
+    UP --> EXT
+    Q --> RAG
+    FS --> RET
+
+    GEM --> ANS["Generated Answer"]
+    RAG --> SRC["Retrieved Source Documents"]
+
+    subgraph OUTPUT["Streamlit Interface — Results"]
+        OUT["Display answer and source evidence"]
+    end
+
     ANS --> OUT
     SRC --> OUT
 ```
