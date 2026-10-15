@@ -40,8 +40,8 @@ RUN mkdir -p /home/user/.cache/huggingface /home/user/.streamlit \
 
 USER user
 
-EXPOSE 7860
+EXPOSE 10000
 
-HEALTHCHECK CMD curl --fail http://localhost:7860/_stcore/health || exit 1
+HEALTHCHECK CMD curl --fail "http://localhost:${PORT:-10000}/_stcore/health" || exit 1
 
-ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=7860", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["sh", "-c", "streamlit run app.py --server.port=${PORT:-10000} --server.address=0.0.0.0 --server.headless=true"]

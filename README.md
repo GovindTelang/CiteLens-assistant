@@ -1,188 +1,244 @@
----
-title: CiteLens - PDF RAG Assistant
-emoji: 📚
-colorFrom: indigo
-colorTo: purple
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
----
-
 # 📚 CiteLens — Ask Questions About Your PDFs
 
-CiteLens is a learning-focused Retrieval-Augmented Generation (RAG) application that lets you ask questions about PDF documents and inspect retrieved source passages. It supports text-based PDFs and scanned pages through OCR, and displays visual page citations when source metadata is available.
+CiteLens is a Retrieval-Augmented Generation (RAG) application that lets you ask questions about PDF documents and inspect the retrieved source passages behind the answers. It supports text-based PDFs and scanned pages through OCR, with source evidence and visual page highlights when metadata is available.
 
 ## Features
 
 - Upload one or more PDF files through a Streamlit interface.
-- Extract PDF text with PyMuPDF and use Tesseract OCR for pages that have little or no extractable text.
-- Split document text into chunks and create embeddings with Sentence Transformers, with a TF-IDF fallback.
+- Extract PDF text using PyMuPDF and use Tesseract OCR for pages with little or no extractable text.
+- Split documents into text chunks and preserve page and source metadata.
+- Generate embeddings using Sentence Transformers, with a TF-IDF fallback.
 - Retrieve relevant chunks using a FAISS vector index.
 - Generate contextual answers using Google's Gemini API through LangChain.
-- Display retrieved source snippets and, when available, highlight their regions on rendered PDF pages.
-- Support conversational memory during a session.
-- Run locally with Python or in a Docker-based host such as Hugging Face Spaces.
+- Display retrieved source passages and, when available, highlight their regions on rendered PDF pages.
+- Maintain conversational context during a session.
+- Run locally with Python or in a Docker container.
+- Deploy the Dockerized application as a web service on Render.
 
 ## Architecture
 
+### 1. Document ingestion
+
 ```mermaid
-flowchart TB
-    subgraph ING["1. Document Ingestion"]
-        direction LR
-        UP["Upload PDF in Streamlit"]
-        EXT["Extract PDF text with PyMuPDF<br/>OCR low-text pages with Tesseract"]
-        CHUNK["Split text into chunks<br/>Preserve page and source metadata"]
-        EMB["Sentence Transformer embeddings<br/>TF-IDF fallback"]
-        FS[("FAISS Vector Store")]
+flowchart LR
+    A["Upload PDF"] --> B["Extract PDF text with PyMuPDF<br/>OCR low-text pages with Tesseract"]
+    B --> C["Split text into chunks<br/>Preserve page and source metadata"]
+    C --> D["Generate embeddings<br/>Sentence Transformers / TF-IDF fallback"]
+    D --> E[("FAISS vector store")]
+```
 
-        UP --> EXT --> CHUNK --> EMB --> FS
-    end
+### 2. Question answering
 
-    subgraph QA["2. Question Answering"]
-        direction LR
-        Q["User question"]
-        RAG["LangChain conversational<br/>retrieval chain + memory"]
-        RET["Configured similarity<br/>retriever (Top-K)"]
-        GEM["Google Gemini API"]
-
-        Q --> RAG
-        RAG -. "Calls retriever" .-> RET
-        RET -->|"Relevant chunks"| RAG
-        RAG -->|"Question, context and history"| GEM
-    end
-
-    FS --> RET
-
+```mermaid
+flowchart LR
+    Q["User question"] --> RAG["LangChain conversational<br/>retrieval chain with memory"]
+    FS[("FAISS vector store")] --> RET["Configured similarity<br/>retriever — Top-K"]
+    RAG -. "Invokes retriever" .-> RET
+    RET -->|"Relevant chunks"| RAG
+    RAG -->|"Question, context and history"| GEM["Google Gemini API"]
     GEM --> ANS["Generated answer"]
     RAG --> SRC["Retrieved source documents"]
-
     ANS --> OUT["Streamlit displays answer<br/>and source evidence"]
     SRC --> OUT
 ```
 
 ## Tech stack
 
-- **Language:** Python 3.10+
-- **UI:** Streamlit
-- **RAG orchestration:** LangChain
-- **Language model:** Google Gemini API
-- **Embeddings:** Sentence Transformers, with scikit-learn TF-IDF fallback
-- **Vector retrieval:** FAISS CPU
-- **PDF processing:** PyMuPDF, Pillow, Tesseract OCR
-- **Deployment:** Streamlit Community Cloud, or Docker-based hosting
+| Component | Technology |
+|---|---|
+| Language | Python 3.11 |
+| User interface | Streamlit |
+| RAG orchestration | LangChain |
+| Language model | Google Gemini API |
+| Embeddings | Sentence Transformers with scikit-learn TF-IDF fallback |
+| Vector retrieval | FAISS CPU |
+| PDF processing | PyMuPDF, PyPDF2 and Pillow |
+| OCR | Tesseract OCR |
+| Containerization | Docker |
+| Hosting | Render Web Service |
 
 ## Run locally on Windows
 
 ### 1. Prerequisites
 
-Install Python 3.10 or newer and Git. For OCR on scanned PDFs, install Tesseract OCR and ensure its executable is available on your `PATH`. You also need a Google Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+Install:
 
-### 2. Get the code and create an environment
+- Python 3.11 or newer
+- Git
+- Tesseract OCR, with its executable available on your system `PATH`
+- A Google Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
-After creating your own GitHub repository, run these commands in PowerShell from the folder where you want the project to live:
+### 2. Clone the repository and create a virtual environment
+
+Open PowerShell in the directory where you want the project to live:
 
 ```powershell
 git clone https://github.com/GovindTelang/CiteLens-assistant.git
 cd CiteLens-assistant
-py -m venv .venv
+
+py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+Create your local environment file:
+
+```powershell
 Copy-Item .env.example .env
 code .env
 ```
 
-After creating the repository under your account, this clone URL will work. In `.env`, set `GEMINI_API_KEY` to your own API key. Do not commit `.env` or share your key.
+Add your own configuration to `.env`:
 
-If PowerShell blocks virtual-environment activation, you can skip activation and call `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`, followed by `.\.venv\Scripts\python.exe -m streamlit run app.py`.
+```env
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+MODEL_NAME=gemini-3.5-flash-lite
+TOP_K=6
+```
+
+Replace the API-key placeholder with your own key. Do not commit `.env` or share your key.
+
+If PowerShell blocks virtual-environment activation, you can use the environment's Python executable directly:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m streamlit run app.py
+```
 
 ### 3. Start the application
 
+With the virtual environment activated, run:
+
 ```powershell
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
-Open the local URL printed in the terminal, usually `http://localhost:8501`.
+If Streamlit's file watcher produces environment-specific errors while inspecting installed packages, try:
+
+```powershell
+python -m streamlit run app.py --server.fileWatcherType none
+```
+
+Open the local URL printed in the terminal, usually [http://localhost:8501](http://localhost:8501).
+
+### 4. Use the application
+
+1. Upload one or more PDFs using the sidebar.
+2. Click **Process Documents** and wait for processing to finish.
+3. Ask a question in the chat input.
+4. Review the generated answer and expand the source-evidence panels to inspect the retrieved passages.
+
+The first run may take longer because the embedding model needs to be downloaded and initialized.
 
 ## Run with Docker
 
-Build the image from the project root:
+Docker provides a consistent environment for the Python dependencies and system tools, including Tesseract OCR.
+
+### 1. Build the image
+
+Run from the repository root:
 
 ```powershell
 docker build -t citelens-rag-assistant .
 ```
 
-Run it while passing your API key as an environment variable:
+### 2. Run the container
+
+After creating your local `.env` file, run:
 
 ```powershell
-docker run --rm -p 7860:7860 -e GEMINI_API_KEY=YOUR_GEMINI_API_KEY citelens-rag-assistant
+docker run --rm -p 7860:7860 --env-file .env citelens-rag-assistant
 ```
 
-Then open `http://localhost:7860`. Avoid putting real API keys in command history or screenshots; a local `.env` file or your deployment host's secrets manager is preferable for regular use.
+Open [http://localhost:7860](http://localhost:7860).
 
-## Deploy (recommended: Streamlit Community Cloud)
+The `.env` file is passed into the running container. It is not copied into the Docker image by the Dockerfile. Avoid placing real API keys in source files, Docker build arguments, screenshots or Git history.
 
-For a first deployment, Streamlit Community Cloud is the simplest option because it deploys directly from GitHub and supports installing system packages through `packages.txt`.
+## Deploy on Render
 
-1. Push this repository to your GitHub account.
-2. Open [Streamlit Community Cloud](https://share.streamlit.io/) and sign in with GitHub.
-3. Select **Create app**, then choose your repository, the `main` branch, and `app.py` as the entrypoint.
-4. In **Advanced settings**, choose Python 3.11 for the deployment environment.
-5. Add the following in the app's **Secrets** settings, replacing the placeholder with your own key:
+CiteLens can be deployed as a Docker-based web service on [Render](https://render.com/).
 
-   ```toml
-   GEMINI_API_KEY = "your-gemini-api-key"
-   ```
+### 1. Create a Web Service
 
-6. Deploy the app and review the logs if dependency installation or startup fails.
+1. Push the project to your GitHub repository.
+2. Sign in to Render and select **New → Web Service**.
+3. Connect the repository `GovindTelang/CiteLens-assistant`.
+4. Select the `main` branch.
+5. Choose **Docker** as the runtime.
+6. Set the Dockerfile path to `./Dockerfile`.
+7. Choose an available service plan and create the service.
 
-The `src/config.py` configuration reads `GEMINI_API_KEY` from the local `.env` file/environment or from Streamlit's secrets store, so you do not need to commit a real key. The `packages.txt` file installs Tesseract for OCR on scanned PDFs. **Before sharing a public demo:** anyone who can access the app may trigger Gemini requests against your configured API key and quota. This starter has no authentication or per-user rate limit, so keep the app private during setup or add access controls before sharing it widely. Streamlit's official deployment docs describe the GitHub deployment flow and `packages.txt` support: [deploying an app](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy) and [app dependencies](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/app-dependencies).
+Render builds the Docker image using the repository's Dockerfile, installs its dependencies and starts the Streamlit application.
 
-## Alternative: run with Docker
+### 2. Configure environment variables
 
-The included Dockerfile installs Tesseract and serves Streamlit on port `7860`.
+In your Render service's environment-variable settings, configure:
 
-```powershell
-docker build -t citelens-rag-assistant .
-docker run --rm -p 7860:7860 -e GEMINI_API_KEY=YOUR_GEMINI_API_KEY citelens-rag-assistant
-```
+| Variable | Value |
+|---|---|
+| `GEMINI_API_KEY` | Your own Gemini API key |
+| `MODEL_NAME` | `gemini-3.5-flash-lite` |
+| `TOP_K` | `6` |
+| `PORT` | `7860` |
 
-Then open `http://localhost:7860`. For a hosted Docker deployment, check the provider's current pricing, free-tier eligibility, and environment-secret instructions before creating the service. Never place API keys in source files, Docker build arguments, README content, or Git history.
+**Port note:** the included Dockerfile starts Streamlit on port `7860`. Set Render's `PORT` to `7860` to match the current Dockerfile configuration. If you later change the Dockerfile to use Render's dynamically assigned port, update this setting and the local Docker instructions accordingly.
+
+Keep the real Gemini API key in Render's environment settings, not in GitHub.
+
+### 3. Verify the deployment
+
+After deploying:
+
+1. Review the build and runtime logs for errors.
+2. Open the public URL provided by Render.
+3. Upload a test PDF and process it.
+4. Ask a question whose answer appears in the PDF.
+5. Verify that the answer and retrieved source evidence are displayed.
+
+Render's free-service availability and resource limits may change. Free services can also become inactive and require time to start again, so the first request after inactivity may be slower.
+
+For current deployment guidance, see the [Render Web Services documentation](https://render.com/docs/web-services) and [Docker deployment documentation](https://render.com/docs/docker).
 
 ## Configuration
 
-Values can be configured in `.env`:
+Configuration is read from the local `.env` file or environment variables, as supported by the application.
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `GEMINI_API_KEY` | Required | Google Gemini API access |
-| `MODEL_NAME` | `gemini-3.8-flash` | Model used for answer generation |
-| `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Text embedding model |
-| `CHUNK_SIZE` | `1000` | Chunk size in characters |
-| `CHUNK_OVERLAP` | `200` | Overlap between adjacent chunks |
-| `TOP_K` | `4` | Number of chunks retrieved for a question |
-| `LLM_TEMPERATURE` | `0.7` | Generation temperature configuration |
-| `MAX_TOKENS` | `2048` | Maximum output-token configuration |
+| Variable | Purpose |
+|---|---|
+| `GEMINI_API_KEY` | Required API key for Gemini |
+| `MODEL_NAME` | Gemini model used for answer generation; the deployment example uses `gemini-3.5-flash-lite` |
+| `EMBEDDING_MODEL` | Sentence Transformer model; the configured default is `sentence-transformers/all-MiniLM-L6-v2` |
+| `CHUNK_SIZE` | Text chunk size in characters; configured default is `1000` |
+| `CHUNK_OVERLAP` | Overlap between adjacent chunks; configured default is `200` |
+| `TOP_K` | Number of retrieved chunks; configured default is `4` |
+| `LLM_TEMPERATURE` | Generation temperature; configured default is `0.7` |
+| `MAX_TOKENS` | Maximum output-token configuration; configured default is `2048` |
+
+Environment variables set on the deployment host take precedence over local configuration files where the application reads them directly.
 
 ## Repository layout
 
 | Path | Responsibility |
 |---|---|
-| `app.py` | Streamlit UI, upload flow, chat history and source display |
-| `src/processor.py` | PDF extraction, OCR fallback, page rendering and chunk metadata |
+| `app.py` | Streamlit interface, upload flow, chat history and source-evidence display |
+| `src/processor.py` | PDF text extraction, OCR fallback, page rendering and chunk metadata |
 | `src/embedding.py` | Embedding generation, FAISS index and retrieval |
 | `src/chat.py` | Gemini integration, RAG chain and conversational memory |
 | `src/config.py` | Environment-based application configuration |
 | `requirements.txt` | Python dependencies |
-| `Dockerfile` | Docker image and Streamlit runtime |
-| `.env.example` | Safe configuration template without a real API key |
-| `packages.txt` | System packages for Streamlit Community Cloud (Tesseract OCR) |
+| `Dockerfile` | Container setup, system dependencies and Streamlit runtime |
+| `.dockerignore` | Files excluded from the Docker build context |
+| `.gitignore` | Excludes environment files, virtual environments and local data |
+| `.env.example` | Safe example configuration without a real API key |
+| `packages.txt` | System-package list for compatible Streamlit-hosted deployments; not used by the Render Docker build |
 
 ## Privacy and limitations
 
-- Uploaded files and indexes are held in application memory for the active session; this starter does not provide a persistent document library.
-- Questions and retrieved document context are sent to the configured Google Gemini API to generate answers. Do not upload confidential or sensitive material unless you have permission and have reviewed the applicable data-handling terms.
-- Retrieval and generated answers can be incomplete or incorrect. Check the displayed source passages before relying on an answer.
-- Scanned-PDF OCR quality depends on scan quality and language support.
-- This project is a learning starter, not a production-ready secure document-management service. Authentication, isolation between users, upload limits, monitoring, and production security hardening would be needed for broader deployment.
+- Uploaded documents, embeddings and conversation state are held in application memory for the active session. This starter does not provide a persistent document library.
+- Questions and retrieved document context are sent to the configured Google Gemini API to generate answers. Do not upload confidential or sensitive documents unless you have permission and have reviewed the applicable data-handling terms.
+- Retrieved passages help inspect the basis of a response, but they do not guarantee that the generated answer is complete or correct. Verify important information against the original PDF.
+- OCR accuracy depends on scan quality, text clarity and language support.
+- The application does not include built-in authentication or per-user rate limiting. Visitors to a publicly accessible deployment may consume the configured Gemini API quota.
+- This is a learning-focused project, not a production-ready secure document-management service. Broader deployment would require appropriate authentication, access isolation, upload limits, monitoring, error handling and security hardening.
